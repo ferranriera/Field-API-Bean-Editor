@@ -1,0 +1,203 @@
+<?php
+
+/**
+ * @file
+ * Adds direct field editing via contextual links.
+ */
+
+/**
+ * Implements hook_menu()
+ */
+function fape_menu() {
+  $items = array();
+  $items['admin/field/edit/%/%/%'] = array(
+    // Access is controlled after we have inspected the entity which
+    // can't easily happen until the callback.
+    'access arguments' => array(TRUE),
+    'page callback' => 'fape_field_edit_page',
+    'page arguments' => array(3, 4, 5),
+  );
+
+  return $items;
+}
+
+/**
+ * Page callback to edit an entity field.
+ */
+function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode = NULL) {
+  $entities = entity_load($entity_type, array($entity_id));
+  if (!$entities) {
+    return MENU_NOT_FOUND;
+  }
+
+  $entity = reset($entities);
+  if (!$entity) {
+    return MENU_NOT_FOUND;
+  }
+
+  if (!isset($langcode) && isset($entity->language)) {
+    $langcode = $entity->language;
+  }
+
+  // Ensure access to actually update this particular field is granted.
+  if (!field_access('update', $field_name, $entity_type, $entity)) {
+    return MENU_ACCESS_DENIED;
+  }
+
+  list($id, $vid, $bundle) = entity_extract_ids($entity_type, $entity);
+  $field_instance = field_info_instance($entity_type, $field_name, $bundle);
+
+  if (empty($field_instance)) {
+    return MENU_NOT_FOUND;
+  }
+
+  $form_state = array(
+    'entity_type' => $entity_type,
+    'entity' => $entity,
+    'field_name' => $field_name,
+    'langcode' => $langcode,
+    'no_redirect' => TRUE,
+    'redirect' => $_GET['q'],
+    'field_instance' => $field_instance,
+    'bundle' => $bundle,
+  );
+
+  $output = drupal_build_form('fape_field_edit_form', $form_state);
+  if (!empty($form_state['executed'])) {
+    entity_save($entity_type, $form_state['entity']);
+    drupal_goto($form_state['redirect']);
+  }
+  return $output;
+}
+
+/**
+ * Field editing form.
+ */
+function fape_field_edit_form($form, &$form_state) {
+  $form['#parents'] = array();
+
+  $entity_type = $form_state['entity_type'];
+  $entity = $form_state['entity'];
+  $field_name = $form_state['field_name'];
+  $field_instance = $form_state['field_instance'];
+  $langcode = $form_state['langcode'];
+  $bundle = $form_state['bundle'];
+
+  ctools_include('fields');
+  // If no language is provided use the default site language.
+  $options = array(
+    'language' => field_valid_language($langcode),
+    'default' => TRUE,
+  );
+
+  $form += (array) ctools_field_invoke_field($field_instance, 'form', $entity_type, $entity, $form, $form_state, $options);
+
+  drupal_set_title(t('<em>Edit @type</em> @title', array('@type' => $bundle, '@title' => $field_instance['label'])), PASS_THROUGH);
+
+  $form['#pre_render'][] = '_field_extra_fields_pre_render';
+  $form['#entity_type'] = $entity_type;
+  $form['#bundle'] = $bundle;
+
+  // Let other modules make changes to the form.
+  // Avoid module_invoke_all() to let parameters be taken by reference.
+  foreach (module_implements('field_attach_form') as $module) {
+    $function = $module . '_field_attach_form';
+    $function($entity_type, $entity, $form, $form_state, $langcode);
+  }
+
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  return $form;
+}
+
+/**
+ * Validate field editing form
+ */
+function fape_field_edit_form_validate($form, &$form_state) {
+  ctools_include('fields');
+
+  $entity_type = $form_state['entity_type'];
+  $entity = $form_state['entity'];
+  $field_name = $form_state['field_name'];
+  $field_instance = $form_state['field_instance'];
+  $langcode = $form_state['langcode'];
+
+  // Extract field values from submitted values.
+  ctools_field_invoke_field_default($field_instance, 'extract_form_values', $entity_type, $entity, $form, $form_state);
+
+  $errors = array();
+  // Check generic, field-type-agnostic errors first.
+  ctools_field_invoke_field_default($field_instance, 'validate', $entity_type, $entity, $errors);
+  // Check field-type specific errors.
+  ctools_field_invoke_field($field_instance, 'validate', $entity_type, $entity, $errors);
+
+  // Let other modules validate the entity.
+  // Avoid module_invoke_all() to let $errors be taken by reference.
+  foreach (module_implements('field_attach_validate') as $module) {
+    $function = $module . '_field_attach_validate';
+    $function($entity_type, $entity, $errors);
+  }
+
+  if ($errors) {
+    // Pass field-level validation errors back to widgets for accurate error
+    // flagging.
+    foreach ($eerrors as $field_errors) {
+      foreach ($field_errors as $langcode => $errors) {
+        $field_state = field_form_get_state($form['#parents'], $field_name, $langcode, $form_state);
+        $field_state['errors'] = $errors;
+        field_form_set_state($form['#parents'], $field_name, $langcode, $form_state, $field_state);
+      }
+    }
+    ctools_field_invoke_field_default($field_instance, 'form_errors', $entity_type, $entity, $form, $form_state);
+  }
+}
+
+
+/**
+ * Submit field editing form
+ */
+function fape_field_edit_form_submit($form, &$form_state) {
+  $entity_type = $form_state['entity_type'];
+  $entity = $form_state['entity'];
+  $field_name = $form_state['field_name'];
+  $field_instance = $form_state['field_instance'];
+  $langcode = $form_state['langcode'];
+
+  // Extract field values from submitted values.
+  ctools_field_invoke_field_default($field_instance, 'extract_form_values', $entity_type, $entity, $form, $form_state);
+
+  ctools_field_invoke_field_default($field_instance, 'submit', $entity_type, $entity, $form, $form_state);
+
+  // Let other modules act on submitting the entity.
+  // Avoid module_invoke_all() to let $form_state be taken by reference.
+  foreach (module_implements('field_attach_submit') as $module) {
+    $function = $module . '_field_attach_submit';
+    $function($entity_type, $entity, $form, $form_state);
+  }
+}
+
+/**
+ * Implement hook_panels_pane_content_alter().
+ *
+ * This adds the contextual link to the entity field pane.
+ */
+function fape_panels_pane_content_alter($content, $pane, $args, $context) {
+  if (!empty($content->content) && $pane->type == 'entity_field') {
+    list($entity_type, $field_name) = explode(':', $pane->subtype);
+
+    // Extract the entity from the context.
+    $plugin = ctools_get_content_type($pane->type);
+    $pane_context = ctools_content_select_context($plugin, $pane->subtype, $pane->configuration, $context);
+
+    list($id, $vid, $bundle) = entity_extract_ids($entity_type, $pane_context->data);
+    $content->admin_links[] = array(
+      'title' => t('Edit field'),
+      'alt' => t("Edit the data in this field."),
+      'href' => "admin/field/edit/$entity_type/$id/$field_name",
+      'query' => drupal_get_destination(),
+    );
+  }
+}
