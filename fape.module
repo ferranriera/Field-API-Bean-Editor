@@ -105,6 +105,36 @@ function fape_field_edit_form($form, &$form_state) {
     $function($entity_type, $entity, $form, $form_state, $langcode);
   }
 
+  list($use_revisions, $control_revisions) = _fape_entity_allows_revisions($entity_type, $bundle, $entity);
+
+  if ($use_revisions) {
+    $form_state['use revisions'] = TRUE;
+    $form['revision_information'] = array(
+      '#weight' => 11,
+    );
+
+    $form['revision_information']['revision'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Create new revision'),
+      '#default_value' => $entity->revision,
+      '#id' => 'edit-revision',
+      '#access' => $control_revisions,
+    );
+
+    if ($control_revisions || $entity->revision) {
+      $form['revision_information']['log'] = array(
+        '#type' => 'textarea',
+        '#title' => t('Log message'),
+        '#description' => t('Provide an explanation of the changes you are making. This will help other authors understand your motivations.'),
+        '#default_value' => $entity->log,
+      );
+
+      if ($control_revisions) {
+        $form['revision_information']['log']['#dependency'] = array('edit-revision' => array(1));
+      }
+    }
+  }
+
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array(
     '#type' => 'submit',
@@ -155,7 +185,6 @@ function fape_field_edit_form_validate($form, &$form_state) {
   }
 }
 
-
 /**
  * Submit field editing form
  */
@@ -177,6 +206,46 @@ function fape_field_edit_form_submit($form, &$form_state) {
     $function = $module . '_field_attach_submit';
     $function($entity_type, $entity, $form, $form_state);
   }
+
+  if (!empty($form_state['use revisions'])) {
+    $entity->revision = $form_state['values']['revision'];
+    $entity->log = $form_state['values']['log'];
+  }
+}
+
+/**
+ * Determine if an entity uses revisions.
+ *
+ * @return
+ *   An array where the first item is whether or not revisions are
+ *   supported, and the second item is whether or not the current
+ *   user has a choice.
+ *
+ *   Much of this is specific to entity types, so entities that are not
+ *   nodes that support revisions may not handle this quite correctly
+ *   without help. We'll put in an alter hook so that support can
+ *   be added, but we have no confidence anyone will ever use it.
+ */
+function _fape_entity_allows_revisions($entity_type, $bundle, $entity) {
+  $retval = array(FALSE, FALSE);
+
+  switch ($entity_type) {
+    case 'node':
+      $node_options = variable_get('node_options_' . $bundle, array('status', 'promote'));
+      $retval[0] = in_array('revision', $node_options);
+      $retval[1] = user_access('administer nodes');
+      break;
+
+    default:
+      $entity_info = entity_get_info($entity_type);
+      $retval[0] = !empty($entity_info['revision table']);
+      break;
+  }
+
+  drupal_alter('fape_entity_allow_revisions', $retval);
+  $entity->revision = $retval[0];
+  $entity->log = '';
+  return $retval;
 }
 
 /**
