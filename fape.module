@@ -25,6 +25,16 @@ function fape_menu() {
  * Page callback to edit an entity field.
  */
 function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode = NULL) {
+  // Ensure the entity type is valid:
+  if (empty($entity_type)) {
+    return MENU_NOT_FOUND;
+  }
+
+  $entity_info = entity_get_info($entity_type);
+  if (!$entity_info) {
+    return MENU_NOT_FOUND;
+  }
+
   $entities = entity_load($entity_type, array($entity_id));
   if (!$entities) {
     return MENU_NOT_FOUND;
@@ -45,7 +55,17 @@ function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode =
   }
 
   list($id, $vid, $bundle) = entity_extract_ids($entity_type, $entity);
-  $field_instance = field_info_instance($entity_type, $field_name, $bundle);
+
+  // This allows us to have limited support for non-field API fields.
+  // Currently we support only node:title.
+  if ($entity_type == 'node' && $field_name == 'title') {
+    $field_instance = TRUE;
+    $subform_id = 'fape_field_edit_node_title_form';
+  }
+  else {
+    $field_instance = field_info_instance($entity_type, $field_name, $bundle);
+    $subform_id = 'fape_field_edit_field_form';
+  }
 
   if (empty($field_instance)) {
     return MENU_NOT_FOUND;
@@ -60,6 +80,7 @@ function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode =
     'redirect' => $_GET['q'],
     'field_instance' => $field_instance,
     'bundle' => $bundle,
+    'subform_id' => $subform_id,
   );
 
   $output = drupal_build_form('fape_field_edit_form', $form_state);
@@ -74,36 +95,14 @@ function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode =
  * Field editing form.
  */
 function fape_field_edit_form($form, &$form_state) {
+  // Since we could edit a number of different things here, immediately
+  // add whatever else is needed.
+  $form_state['subform_id']($form, $form_state);
   $form['#parents'] = array();
 
   $entity_type = $form_state['entity_type'];
   $entity = $form_state['entity'];
-  $field_name = $form_state['field_name'];
-  $field_instance = $form_state['field_instance'];
-  $langcode = $form_state['langcode'];
   $bundle = $form_state['bundle'];
-
-  ctools_include('fields');
-  // If no language is provided use the default site language.
-  $options = array(
-    'language' => field_valid_language($langcode),
-    'default' => TRUE,
-  );
-
-  $form += (array) ctools_field_invoke_field($field_instance, 'form', $entity_type, $entity, $form, $form_state, $options);
-
-  drupal_set_title(t('<em>Edit @type</em> @title', array('@type' => $bundle, '@title' => $field_instance['label'])), PASS_THROUGH);
-
-  $form['#pre_render'][] = '_field_extra_fields_pre_render';
-  $form['#entity_type'] = $entity_type;
-  $form['#bundle'] = $bundle;
-
-  // Let other modules make changes to the form.
-  // Avoid module_invoke_all() to let parameters be taken by reference.
-  foreach (module_implements('field_attach_form') as $module) {
-    $function = $module . '_field_attach_form';
-    $function($entity_type, $entity, $form, $form_state, $langcode);
-  }
 
   list($use_revisions, $control_revisions) = _fape_entity_allows_revisions($entity_type, $bundle, $entity);
 
@@ -140,13 +139,57 @@ function fape_field_edit_form($form, &$form_state) {
     '#type' => 'submit',
     '#value' => t('Save'),
   );
+
+  // Ensure this actually gets on there.
+  $form['#submit'][] = 'fape_field_edit_form_submit';
   return $form;
+}
+
+/**
+ * Subform to edit a field instance.
+ *
+ * This isn't a true form. As such it modifies the $form by reference.
+ */
+function fape_field_edit_field_form(&$form, &$form_state) {
+  $form['#parents'] = array();
+
+  $entity_type = $form_state['entity_type'];
+  $entity = $form_state['entity'];
+  $field_name = $form_state['field_name'];
+  $field_instance = $form_state['field_instance'];
+  $langcode = $form_state['langcode'];
+  $bundle = $form_state['bundle'];
+
+  ctools_include('fields');
+  // If no language is provided use the default site language.
+  $options = array(
+    'language' => field_valid_language($langcode),
+    'default' => TRUE,
+  );
+
+  $form += (array) ctools_field_invoke_field($field_instance, 'form', $entity_type, $entity, $form, $form_state, $options);
+
+  drupal_set_title(t('<em>Edit @type</em> @title', array('@type' => $bundle, '@title' => $field_instance['label'])), PASS_THROUGH);
+
+  $form['#pre_render'][] = '_field_extra_fields_pre_render';
+  $form['#entity_type'] = $entity_type;
+  $form['#bundle'] = $bundle;
+
+  // Let other modules make changes to the form.
+  // Avoid module_invoke_all() to let parameters be taken by reference.
+  foreach (module_implements('field_attach_form') as $module) {
+    $function = $module . '_field_attach_form';
+    $function($entity_type, $entity, $form, $form_state, $langcode);
+  }
+
+  $form['#validate'][] = 'fape_field_edit_field_form_validate';
+  $form['#submit'][] = 'fape_field_edit_field_form_submit';
 }
 
 /**
  * Validate field editing form
  */
-function fape_field_edit_form_validate($form, &$form_state) {
+function fape_field_edit_field_form_validate($form, &$form_state) {
   ctools_include('fields');
 
   $entity_type = $form_state['entity_type'];
@@ -188,7 +231,7 @@ function fape_field_edit_form_validate($form, &$form_state) {
 /**
  * Submit field editing form
  */
-function fape_field_edit_form_submit($form, &$form_state) {
+function fape_field_edit_field_form_submit($form, &$form_state) {
   $entity_type = $form_state['entity_type'];
   $entity = $form_state['entity'];
   $field_name = $form_state['field_name'];
@@ -206,7 +249,37 @@ function fape_field_edit_form_submit($form, &$form_state) {
     $function = $module . '_field_attach_submit';
     $function($entity_type, $entity, $form, $form_state);
   }
+}
 
+/**
+ * Subform to edit the entity 'title' field.
+ *
+ * This isn't a true form. As such it modifies the $form by reference.
+ */
+function fape_field_edit_node_title_form(&$form, &$form_state) {
+  $node = $form_state['entity'];
+  $type = node_type_get_type($node);
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' => check_plain($type->title_label),
+    '#default_value' => !empty($node->title) ? $node->title : '',
+    '#required' => TRUE,
+    '#weight' => -5,
+  );
+
+  $form['#submit'][] = 'fape_field_edit_node_title_form_submit';
+}
+
+function fape_field_edit_node_title_form_submit($form, &$form_state) {
+  $form_state['entity']->title = $form_state['values']['title'];
+}
+
+/**
+ * General submit callback. Simply handles the revision.
+ */
+function fape_field_edit_form_submit($form, &$form_state) {
+  $entity = $form_state['entity'];
   if (!empty($form_state['use revisions'])) {
     $entity->revision = $form_state['values']['revision'];
     $entity->log = $form_state['values']['log'];
@@ -254,7 +327,12 @@ function _fape_entity_allows_revisions($entity_type, $bundle, $entity) {
  * This adds the contextual link to the entity field pane.
  */
 function fape_panels_pane_content_alter($content, $pane, $args, $context) {
-  if (!empty($content->content) && $pane->type == 'entity_field') {
+  // Don't bother with empty panes.
+  if (empty($content->content)) {
+    return;
+  }
+
+  if ($pane->type == 'entity_field') {
     list($entity_type, $field_name) = explode(':', $pane->subtype);
 
     // Extract the entity from the context.
@@ -269,4 +347,21 @@ function fape_panels_pane_content_alter($content, $pane, $args, $context) {
       'query' => drupal_get_destination(),
     );
   }
+
+  // We also support the node title field specifically.
+  if ($pane->type == 'node_title') {
+    $plugin = ctools_get_content_type($pane->type);
+    $pane_context = ctools_content_select_context($plugin, $pane->subtype, $pane->configuration, $context);
+
+    $nid = $pane_context->data->nid;
+
+    $content->admin_links[] = array(
+      'title' => t('Edit field'),
+      'alt' => t("Edit the data in this field."),
+      'href' => "admin/field/edit/node/$nid/title",
+      'query' => drupal_get_destination(),
+    );
+  }
+
 }
+
