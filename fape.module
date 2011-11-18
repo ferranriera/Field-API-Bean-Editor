@@ -83,6 +83,8 @@ function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode =
     'subform_id' => $subform_id,
   );
 
+  drupal_set_title(t('<em>Edit @type</em> @title', array('@type' => $bundle, '@title' => $field_instance['label'])), PASS_THROUGH);
+
   $output = drupal_build_form('fape_field_edit_form', $form_state);
   if (!empty($form_state['executed'])) {
     entity_save($entity_type, $form_state['entity']);
@@ -169,8 +171,6 @@ function fape_field_edit_field_form(&$form, &$form_state) {
 
   $form += (array) ctools_field_invoke_field($field_instance, 'form', $entity_type, $entity, $form, $form_state, $options);
 
-  drupal_set_title(t('<em>Edit @type</em> @title', array('@type' => $bundle, '@title' => $field_instance['label'])), PASS_THROUGH);
-
   $form['#pre_render'][] = '_field_extra_fields_pre_render';
   $form['#entity_type'] = $entity_type;
   $form['#bundle'] = $bundle;
@@ -217,7 +217,7 @@ function fape_field_edit_field_form_validate($form, &$form_state) {
   if ($errors) {
     // Pass field-level validation errors back to widgets for accurate error
     // flagging.
-    foreach ($eerrors as $field_errors) {
+    foreach ($errors as $field_errors) {
       foreach ($field_errors as $langcode => $errors) {
         $field_state = field_form_get_state($form['#parents'], $field_name, $langcode, $form_state);
         $field_state['errors'] = $errors;
