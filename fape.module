@@ -50,7 +50,7 @@ function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode =
   }
 
   // Ensure access to actually update this particular field is granted.
-  if (!field_access('update', $field_name, $entity_type, $entity)) {
+  if (!field_access('edit', $field_name, $entity_type, $entity)) {
     return MENU_ACCESS_DENIED;
   }
 
@@ -61,6 +61,9 @@ function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode =
   if ($entity_type == 'node' && $field_name == 'title') {
     $field_instance = TRUE;
     $subform_id = 'fape_field_edit_node_title_form';
+    if (!node_access('update', $entity)) {
+      return MENU_ACCESS_DENIED;
+    }
   }
   else {
     $field_instance = field_info_instance($entity_type, $field_name, $bundle);
@@ -340,12 +343,15 @@ function fape_panels_pane_content_alter($content, $pane, $args, $context) {
     $pane_context = ctools_content_select_context($plugin, $pane->subtype, $pane->configuration, $context);
 
     list($id, $vid, $bundle) = entity_extract_ids($entity_type, $pane_context->data);
-    $content->admin_links[] = array(
-      'title' => t('Edit field'),
-      'alt' => t("Edit the data in this field."),
-      'href' => "admin/field/edit/$entity_type/$id/$field_name",
-      'query' => drupal_get_destination(),
-    );
+    if (entity_access('update', $entity_type, $pane_context->data) &&
+        field_access('edit', $field_name, $entity_type, $pane_context->data)) {
+      $content->admin_links[] = array(
+        'title' => t('Edit field'),
+        'alt' => t("Edit the data in this field."),
+        'href' => "admin/field/edit/$entity_type/$id/$field_name",
+        'query' => drupal_get_destination(),
+      );
+    }
   }
 
   // We also support the node title field specifically.
@@ -355,12 +361,14 @@ function fape_panels_pane_content_alter($content, $pane, $args, $context) {
 
     $nid = $pane_context->data->nid;
 
-    $content->admin_links[] = array(
-      'title' => t('Edit field'),
-      'alt' => t("Edit the data in this field."),
-      'href' => "admin/field/edit/node/$nid/title",
-      'query' => drupal_get_destination(),
-    );
+    if (node_access('update', $pane_context->data)) {
+      $content->admin_links[] = array(
+        'title' => t('Edit field'),
+        'alt' => t("Edit the data in this field."),
+        'href' => "admin/field/edit/node/$nid/title",
+        'query' => drupal_get_destination(),
+      );
+    }
   }
 
 }
