@@ -14,6 +14,7 @@ function fape_menu() {
     // Access is controlled after we have inspected the entity which
     // can't easily happen until the callback.
     'access arguments' => array(TRUE),
+    'access callback' => TRUE,
     'page callback' => 'fape_field_edit_page',
     'page arguments' => array(3, 4, 5),
   );
