@@ -145,6 +145,13 @@ function fape_field_edit_form($form, &$form_state) {
     '#type' => 'submit',
     '#value' => t('Save'),
   );
+  $form['actions']['cancel'] = array(
+    '#type' => 'submit',
+    '#value' => t('Cancel'),
+    '#validate' => array('fape_field_edit_form_cancel'),
+    '#executes_submit_callback' => FALSE,
+  );
+   
 
   // Ensure this actually gets on there.
   $form['#submit'][] = 'fape_field_edit_form_submit';
@@ -288,6 +295,17 @@ function fape_field_edit_form_submit($form, &$form_state) {
     $entity->revision = $form_state['values']['revision'];
     $entity->log = $form_state['values']['log'];
   }
+}
+
+/**
+ * Redirect back to original page when user hits the cancel button.
+ * 
+ * Note:
+ * This is registered as a form validate handler on the cancel submit element
+ * so that we can bypass the submit logic which the ers module ties into.
+ */
+function fape_field_edit_form_cancel($form, &$form_state) {
+  drupal_goto($form_state['redirect']);
 }
 
 /**
