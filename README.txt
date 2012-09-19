@@ -1,10 +1,13 @@
-This module adds a contextual link to Panel Panes that are entity
-fields allowing fields to be edited directly.
+It is highly recommended you install both the Panels and Contextual
+modules alongside FAPE. 
+
+This module allows Contextual to create a link to Panel Panes that are
+entity fields allowing the fields to be edited directly.
 
 To make use of this module, first enable the module. Then enable
-Panels and on a panel that has an entity context, add any field.
-Users who have access to edit that field on that entity and have
-contextual links access will see a little contextual link allowing
+Contextual and Panels. For any panel that has an entity context,
+users who have access to edit the fields on that entity and have
+contextual links access will see a contextual link allowing
 them to edit that field in the overlay (or on a separate screen
 if they do not have overlay access).
 

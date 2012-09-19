@@ -7,4 +7,3 @@ dependencies[] = ctools
 ; by non-Panels modules if they desire.
 ; dependencies[] = panels
 dependencies[] = entity
-dependencies[] = contextual
