@@ -1,5 +1,6 @@
 Field API Pane Editor 7.x-1.x-dev, xxxx-xx-xx
 ---------------------------------------------
+#1846156 by Pancho, ericras: Incorrect usage of field_access().
 #1785056 by beeradb: Removing the contextual dependency.
 #1607652 by dsavinov: Adding a Cancel button to the field edit form.
 
