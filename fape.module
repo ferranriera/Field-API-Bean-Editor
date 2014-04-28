@@ -98,7 +98,19 @@ function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode =
     'subform_id' => $subform_id,
   );
 
-  drupal_set_title(t('<em>Edit @type</em> @title', array('@type' => $bundle, '@title' => $field_instance['label'])), PASS_THROUGH);
+  // Try to figure out bundle's label for nicer field editing title.
+  $entity_bundles = $entity_info['bundles'];
+  $bundle_label = $bundle;
+  foreach ($entity_bundles as $key => $entity_bundle) {
+    if ($key == $bundle) {
+      if (isset($entity_bundle['label'])) {
+        $bundle_label = $entity_bundle['label'];
+      }
+      break;
+    }
+  }
+
+  drupal_set_title(t('<em>Edit @type</em> @title', array('@type' => $bundle_label, '@title' => $field_instance['label'])), PASS_THROUGH);
 
   $output = drupal_build_form('fape_field_edit_form', $form_state);
   if (!empty($form_state['executed'])) {
