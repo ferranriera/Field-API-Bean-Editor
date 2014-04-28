@@ -46,8 +46,8 @@ function fape_field_edit_page($entity_type, $entity_id, $field_name, $langcode =
     return MENU_NOT_FOUND;
   }
 
-  if (!isset($langcode) && isset($entity->language)) {
-    $langcode = $entity->language;
+  if (!isset($langcode)) {
+    $langcode = entity_language($entity_type, $entity);
   }
 
   // Ensure access to actually update this particular field is granted.
