@@ -1,5 +1,7 @@
 Field API Pane Editor 7.x-1.x-dev, xxxx-xx-xx
 ---------------------------------------------
+#1743712 by DamienMcKenna: Don't show field groups or the fields from Metatag,
+  Panelizer or Redirect.
 #1650442 by Wim Leers, psynaptic, DamienMcKenna: Support for the node "author"
   and "created" properties.
 #2249285 by DamienMcKenna: Require CTools 1.4.

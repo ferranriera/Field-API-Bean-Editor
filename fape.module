@@ -198,8 +198,18 @@ function fape_field_edit_field_form(&$form, &$form_state) {
   $form['#bundle'] = $bundle;
 
   // Let other modules make changes to the form.
+  // Exclude some modules.
+  $excluded_modules = array(
+    'field_group',
+    'metatag',
+    'panelizer',
+    'redirect',
+  );
   // Avoid module_invoke_all() to let parameters be taken by reference.
   foreach (module_implements('field_attach_form') as $module) {
+    if (in_array($module, $excluded_modules)) {
+      continue;
+    }
     $function = $module . '_field_attach_form';
     $function($entity_type, $entity, $form, $form_state, $langcode);
   }
