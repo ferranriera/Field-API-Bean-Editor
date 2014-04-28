@@ -1,5 +1,6 @@
 Field API Pane Editor 7.x-1.x-dev, xxxx-xx-xx
 ---------------------------------------------
+#2249285 by DamienMcKenna: Require CTools 1.4.
 #1817746 by DamienMcKenna: Use entity_language() instead of $entity->language.
 #1846156 by Pancho, ericras: Incorrect usage of field_access().
 #1785056 by beeradb: Removing the contextual dependency.
