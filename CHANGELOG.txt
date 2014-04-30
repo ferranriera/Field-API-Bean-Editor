@@ -1,5 +1,5 @@
-Field API Pane Editor 7.x-1.x-dev, xxxx-xx-xx
----------------------------------------------
+Field API Pane Editor 7.x-1.2, 2014-04-30
+-----------------------------------------
 By David_Rothstein: The edit page did not verify access to edit the entity that
   the field was attached to.
 #2252029 by iMiksu: Use the entity bundle's label in the page title.
