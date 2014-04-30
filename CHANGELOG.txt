@@ -1,5 +1,7 @@
 Field API Pane Editor 7.x-1.x-dev, xxxx-xx-xx
 ---------------------------------------------
+By David_Rothstein: The edit page did not verify access to edit the entity that
+  the field was attached to.
 #2252029 by iMiksu: Use the entity bundle's label in the page title.
 #1743712 by DamienMcKenna: Don't show field groups or the fields from Metatag,
   Panelizer or Redirect.
