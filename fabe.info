@@ -1,0 +1,8 @@
+name = Field API Bean Editor
+description = Adds a contextual link to Field API Bean Panes to edit that bean.
+core = 7.x
+package = Chaos tool suite
+
+dependencies[] = ctools (>=1.4)
+dependencies[] = entity
+dependencies[] = bean
