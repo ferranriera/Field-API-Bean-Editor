@@ -5,24 +5,42 @@
  *
  * This adds the contextual link to the entity field pane.
  */
-function fape_panels_pane_content_alter($content, $pane, $args, $context) {
-  // Don't bother with empty panes.
-  if (empty($content->content)) {
-    return;
-  }
+function fabe_panels_pane_content_alter($content, $pane, $args, $context) {
 
-  // We also support the node title, author, and created fields specifically.
-  elseif (in_array($pane->type, array('node_title', 'node_author', 'node_created'))) {
+  if  ($pane->type == 'entity_field' && strpos($pane->subtype,'bean') !== false) {
     $plugin = ctools_get_content_type($pane->type);
     $entity = ctools_content_select_context($plugin, $pane->subtype, $pane->configuration, $context)->data;
-    if (node_access('update', $entity)) {
+
+    if (entity_access('update', 'bean', $entity)) {
+      global $language;
       list($ignore, $field_name) = explode('_', $pane->type);
       $content->admin_links[] = array(
         'title' => t('Edit block'),
         'alt' => t('Edit the data in this block.'),
-        'href' => "block/gipo-footer-our-newsletters/edit/en",
+        'href' => "block/".$entity->delta."/edit/".$language->language,
         'query' => drupal_get_destination(),
       );
     }
   }
+
+}
+
+
+function fabe_views_pre_view(&$view, &$display_id, &$args) {
+    if ($view->base_table=="bean"){
+        $view->add_item($view->current_display, 'field', 'bean', 'edit_link', array(
+            'label' => '',
+            'exclude' => TRUE,
+        ), 'edit_link');
+
+        $view->add_item($view->current_display, 'field', 'views', 'contextual_links', array(
+            'label' => '',
+            'exclude' => false,
+            'fields' => array(
+                'edit_link' => 'edit_link',
+            ),
+        ), 'contextual_links');
+    }
+
+
 }
